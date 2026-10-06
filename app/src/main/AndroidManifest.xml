@@ -4,6 +4,13 @@
     <uses-feature
         android:name="android.hardware.usb.host"
         android:required="true" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
+    <!-- Required (runtime-granted) to open any USB device with a video-class interface
+         when targeting API 28+. Without it, USB permission is silently denied. -->
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <application
         android:allowBackup="false"

@@ -1,5 +1,6 @@
 package com.example.bosondiag
 
+import android.Manifest
 import android.app.Activity
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -8,6 +9,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.graphics.Typeface
 import android.hardware.usb.UsbManager
 import android.os.Bundle
@@ -28,6 +30,14 @@ class MainActivity : Activity() {
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == ACTION_PERM) {
+                val granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
+                Toast.makeText(
+                    context,
+                    if (granted) "USB permission granted" else "USB permission DENIED",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
             refresh()
         }
     }
@@ -37,6 +47,7 @@ class MainActivity : Activity() {
         usb = getSystemService(Context.USB_SERVICE) as UsbManager
         buildUi()
         refresh()
+        requestAll()
     }
 
     override fun onStart() {
@@ -113,7 +124,26 @@ class MainActivity : Activity() {
         out.text = UsbReport.build(this, usb)
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        refresh()
+        if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            requestAll()
+        } else {
+            Toast.makeText(this, "CAMERA permission denied; USB video access will not work", Toast.LENGTH_LONG).show()
+        }
+    }
+
     private fun requestAll() {
+        // Android requires CAMERA permission before it will grant USB access to a UVC device.
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.CAMERA), REQ_CAMERA)
+            return
+        }
         val missing = usb.deviceList.values.filter { !usb.hasPermission(it) }
         if (missing.isEmpty()) {
             Toast.makeText(this, "Nothing to grant (no devices, or all already granted)", Toast.LENGTH_SHORT).show()
@@ -126,7 +156,11 @@ class MainActivity : Activity() {
                 Intent(ACTION_PERM).setPackage(packageName),
                 PendingIntent.FLAG_MUTABLE
             )
-            usb.requestPermission(d, pi)
+            try {
+                usb.requestPermission(d, pi)
+            } catch (e: Exception) {
+                Toast.makeText(this, "requestPermission failed: $e", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -149,5 +183,6 @@ class MainActivity : Activity() {
 
     companion object {
         private const val ACTION_PERM = "com.example.bosondiag.USB_PERMISSION"
+        private const val REQ_CAMERA = 1
     }
 }

@@ -40,6 +40,10 @@ object UsbReport {
         )
         sb.appendLine("USB host feature: " + ctx.packageManager.hasSystemFeature(PackageManager.FEATURE_USB_HOST))
         val devices = usb.deviceList.values.sortedBy { it.deviceName }
+        sb.appendLine(
+            "CAMERA permission: " +
+                (ctx.checkSelfPermission(android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
+        )
         sb.appendLine("Devices attached: ${devices.size}")
         if (devices.isEmpty()) {
             sb.appendLine()
